@@ -42,9 +42,44 @@ function tileSuitClass(idx){
 const $ = id => document.getElementById(id);
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
+let currentProblem = null;
+let currentDifficulty = 'all';
+let answered = false;
+
+function newProblem(){
+  answered = false;
+  $('feedback').textContent = '';
+  $('feedback').className = 'feedback';
+  $('explain').innerHTML = '';
+  $('nextBtn').style.display = 'none';
+  currentProblem = generateProblem(mulberry32(Date.now() ^ (Math.random()*1e9)), currentDifficulty);
+  renderHand(currentProblem.hand, onTileClick);
+}
+
+function onTileClick(tile, el){
+  if (answered) return;
+  answered = true;
+  const chosen = currentProblem.discardOptions.find(o => o.tile === tile);
+  const isCorrect = chosen.isCorrect;
+
+  document.querySelectorAll('#hand .tile').forEach(node => {
+    const t = Number(node.dataset.tile);
+    const opt = currentProblem.discardOptions.find(o => o.tile === t);
+    if (opt && opt.isCorrect) node.classList.add('correct');
+    node.classList.add('disabled');
+  });
+  if (!isCorrect) el.classList.add('wrong');
+
+  $('feedback').textContent = isCorrect ? '正解！' : '不正解…';
+  $('feedback').className = 'feedback ' + (isCorrect ? 'correct' : 'wrong');
+  renderExplain(currentProblem.discardOptions, tile);
+  $('nextBtn').style.display = '';
+}
+
 function initUI(){
   if (!$('quizRoot')) return;
-  $('hand').textContent = '準備中…';
+  $('nextBtn').addEventListener('click', newProblem);
+  newProblem();
 }
 
 // 通常形(4面子+1雀頭)のシャンテン数を再帰的なブロック分解の全探索で求める。
@@ -224,6 +259,20 @@ function renderHand(hand, onTileClick) {
       container.appendChild(el);
     }
   }
+}
+
+// 打牌候補の一覧をシャンテン数・受け入れ枚数の降順テーブルとして#explainに描画する。
+function renderExplain(discardOptions, chosenTile) {
+  const rows = discardOptions.map(o => {
+    const cls = o.isCorrect ? 'correct' : '';
+    const mark = o.tile === chosenTile ? '←選択' : '';
+    return `<tr class="${cls}"><td>${esc(tileLabel(o.tile))}</td><td>${o.shantenAfter}</td><td>${o.ukeireTotal}</td><td>${esc(mark)}</td></tr>`;
+  }).join('');
+  $('explain').innerHTML = `
+    <table>
+      <thead><tr><th>打牌</th><th>シャンテン数</th><th>受け入れ枚数</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
 }
 
 // テスト用ヘルパ: "123m456p" のような記法を34要素配列に変換する
