@@ -138,6 +138,25 @@ function shanten(counts) {
   return Math.min(stdShanten(counts), chiitoiShanten(counts), kokushiShanten(counts));
 }
 
+// 13枚の手牌に対し、加えるとシャンテン数が1つ縮む牌(受け入れ牌)を全34種類から探し、
+// 山に残っている枚数(4 - 手牌内の保有数)を合計する。他家の手牌・捨て牌は考慮しない単純化。
+function ukeire(counts13) {
+  const base = shanten(counts13);
+  let total = 0;
+  const accepted = [];
+  for (let t = 0; t < TILE_COUNT; t++) {
+    if (counts13[t] >= 4) continue;
+    const c14 = counts13.slice();
+    c14[t]++;
+    if (shanten(c14) < base) {
+      const remain = 4 - counts13[t];
+      accepted.push([t, remain]);
+      total += remain;
+    }
+  }
+  return { total, accepted };
+}
+
 // テスト用ヘルパ: "123m456p" のような記法を34要素配列に変換する
 function mkCounts(str){
   const counts = new Array(TILE_COUNT).fill(0);
@@ -183,6 +202,12 @@ window.__registerTests = function(){
   assertEqual('国士無双-和了(対子あり)', kokushiShanten(mkCounts('119m19p19s1234567z')), -1);
   assertEqual('統合shanten-和了', shanten(mkCounts('123456789m12355p')), -1);
   assertEqual('統合shanten-完全孤立(七対子側が有利)', shanten(mkCounts('147m147p147s1234z')), 6);
+
+  // ukeire
+  const tankiHand = mkCounts('123456789m1235p');
+  const uk = ukeire(tankiHand);
+  assertEqual('単騎待ちukeire-合計枚数', uk.total, 3);
+  assertEqual('単騎待ちukeire-受け入れ牌', uk.accepted, [[13, 3]]); // 13 = 5p (9+5-1)
 };
 
 document.addEventListener('DOMContentLoaded', initUI);
