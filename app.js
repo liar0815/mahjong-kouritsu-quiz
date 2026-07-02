@@ -44,6 +44,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;","
 
 let currentProblem = null;
 let currentDifficulty = 'all';
+let includeHonors = false;
 let answered = false;
 
 function newProblem(){
@@ -52,7 +53,7 @@ function newProblem(){
   $('feedback').className = 'feedback';
   $('explain').innerHTML = '';
   $('nextBtn').style.display = 'none';
-  currentProblem = generateProblem(mulberry32(Date.now() ^ (Math.random()*1e9)), currentDifficulty);
+  currentProblem = generateProblem(mulberry32(Date.now() ^ (Math.random()*1e9)), currentDifficulty, includeHonors);
   renderHand(currentProblem.hand, onTileClick);
 }
 
@@ -99,6 +100,10 @@ function initUI(){
     });
   });
   document.querySelector('.diffBtn[data-diff="all"]').classList.add('active');
+  $('honorToggle').addEventListener('change', () => {
+    includeHonors = $('honorToggle').checked;
+    newProblem();
+  });
   renderStats(loadStats());
   newProblem();
 }
@@ -239,10 +244,12 @@ function evaluateDiscards(counts14) {
   return candidates;
 }
 
-// 34種×4枚=136枚の牌山からランダムに14枚を引く(Fisher-Yatesシャッフルの先頭14枚を採用)。
-function drawRandomHand(rng) {
+// 牌山からランダムに14枚を引く(Fisher-Yatesシャッフルの先頭14枚を採用)。
+// includeHonors=falseの場合、字牌(27-33)を山に含めない(27種×4枚=108枚から抽選)。
+function drawRandomHand(rng, includeHonors) {
+  const tileKinds = includeHonors ? TILE_COUNT : 27;
   const pool = [];
-  for (let t = 0; t < TILE_COUNT; t++) for (let k = 0; k < 4; k++) pool.push(t);
+  for (let t = 0; t < tileKinds; t++) for (let k = 0; k < 4; k++) pool.push(t);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -254,9 +261,9 @@ function drawRandomHand(rng) {
 
 // 難易度フィルタに合う14枚を引き当てるまで再抽選する。
 // 'tenpai' = 0〜1シャンテン, 'mid' = 2〜3シャンテン, 'all' = 絞り込みなし
-function generateProblem(rng, difficulty) {
+function generateProblem(rng, difficulty, includeHonors) {
   for (;;) {
-    const hand = drawRandomHand(rng);
+    const hand = drawRandomHand(rng, includeHonors);
     const discardOptions = evaluateDiscards(hand);
     const bestShanten = Math.min(...discardOptions.map(o => o.shantenAfter));
     if (difficulty === 'all') return { hand, discardOptions, bestShanten };
@@ -383,17 +390,20 @@ window.__registerTests = function(){
 
   // drawRandomHand / generateProblem
   const rngHand = mulberry32(42);
-  const hand = drawRandomHand(rngHand);
+  const hand = drawRandomHand(rngHand, true);
   assertEqual('drawRandomHandは合計14枚', hand.reduce((a,b)=>a+b,0), 14);
   assertEqual('drawRandomHandは各牌最大4枚', hand.every(v => v <= 4), true);
 
-  const probAll = generateProblem(mulberry32(7), 'all');
+  const handNoHonors = drawRandomHand(mulberry32(42), false);
+  assertEqual('drawRandomHand(includeHonors=false)は字牌を含まない', handNoHonors.slice(27).every(v => v === 0), true);
+
+  const probAll = generateProblem(mulberry32(7), 'all', true);
   assertEqual('generateProblem(all)は14枚', probAll.hand.reduce((a,b)=>a+b,0), 14);
 
-  const probTenpai = generateProblem(mulberry32(7), 'tenpai');
+  const probTenpai = generateProblem(mulberry32(7), 'tenpai', true);
   assertEqual('generateProblem(tenpai)はbestShantenが0か1', probTenpai.bestShanten <= 1, true);
 
-  const probMid = generateProblem(mulberry32(7), 'mid');
+  const probMid = generateProblem(mulberry32(7), 'mid', true);
   assertEqual('generateProblem(mid)はbestShantenが2か3', probMid.bestShanten >= 2 && probMid.bestShanten <= 3, true);
 
   // stats
