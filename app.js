@@ -209,6 +209,23 @@ function generateProblem(rng, difficulty) {
   }
 }
 
+// handを牌カードとして#handに描画する。onTileClickはカードクリック時に(tileIndex, cardElement)を渡して呼ばれる。
+function renderHand(hand, onTileClick) {
+  const container = $('hand');
+  container.innerHTML = '';
+  for (let t = 0; t < TILE_COUNT; t++) {
+    for (let k = 0; k < hand[t]; k++) {
+      const el = document.createElement('div');
+      el.className = 'tile ' + tileSuitClass(t);
+      el.textContent = tileGlyph(t);
+      el.title = esc(tileLabel(t));
+      el.dataset.tile = String(t);
+      el.addEventListener('click', () => onTileClick(t, el));
+      container.appendChild(el);
+    }
+  }
+}
+
 // テスト用ヘルパ: "123m456p" のような記法を34要素配列に変換する
 function mkCounts(str){
   const counts = new Array(TILE_COUNT).fill(0);
