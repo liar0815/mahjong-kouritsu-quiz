@@ -157,6 +157,32 @@ function ukeire(counts13) {
   return { total, accepted };
 }
 
+// 14枚の手牌に対し、ありうる打牌候補(手牌に含まれる牌種)ごとに
+// 「切った後のシャンテン数」「受け入れ枚数」を計算する。
+// 正解(isCorrect)は、まずシャンテン数が最小になる打牌グループに絞り込み、
+// その中で受け入れ枚数が最大の打牌(同点はすべて正解)とする。
+function evaluateDiscards(counts14) {
+  const candidates = [];
+  for (let t = 0; t < TILE_COUNT; t++) {
+    if (counts14[t] === 0) continue;
+    const c13 = counts14.slice();
+    c13[t]--;
+    const shantenAfter = shanten(c13);
+    const uk = ukeire(c13);
+    candidates.push({ tile: t, shantenAfter, ukeireTotal: uk.total, ukeireAccepted: uk.accepted, isCorrect: false });
+  }
+
+  const minShanten = Math.min(...candidates.map(o => o.shantenAfter));
+  const inBestGroup = candidates.filter(o => o.shantenAfter === minShanten);
+  const maxUkeire = Math.max(...inBestGroup.map(o => o.ukeireTotal));
+  for (const o of candidates) {
+    if (o.shantenAfter === minShanten && o.ukeireTotal === maxUkeire) o.isCorrect = true;
+  }
+
+  candidates.sort((a, b) => a.shantenAfter - b.shantenAfter || b.ukeireTotal - a.ukeireTotal);
+  return candidates;
+}
+
 // テスト用ヘルパ: "123m456p" のような記法を34要素配列に変換する
 function mkCounts(str){
   const counts = new Array(TILE_COUNT).fill(0);
@@ -208,6 +234,17 @@ window.__registerTests = function(){
   const uk = ukeire(tankiHand);
   assertEqual('単騎待ちukeire-合計枚数', uk.total, 3);
   assertEqual('単騎待ちukeire-受け入れ牌', uk.accepted, [[13, 3]]); // 13 = 5p (9+5-1)
+
+  // evaluateDiscards: 123456789m(3面子) + 123p(1面子) + 5p,6p(対子ではなく単独2枚)の14枚。
+  // 4面子は完成しているが雀頭が無いため、5pか6pのどちらかを切って残り1枚を単騎待ちにする
+  // (どちらも受け入れ3枚で同点=両方正解)のが正しい。萬子側を崩すと面子が壊れてシャンテンが悪化する。
+  const discardHand = mkCounts('123456789m12356p'); // 14枚
+  const options = evaluateDiscards(discardHand);
+  assertEqual('打牌候補の枚数(14枚すべて異なる牌種)', options.length, 14);
+  const best = options.filter(o => o.isCorrect);
+  assertEqual('正解は5pと6pを切るケースの2通り(単騎待ちで同点)', best.map(o=>o.tile).sort((a,b)=>a-b), [13, 14]); // 13=5p, 14=6p
+  assertEqual('正解打牌後はテンパイ(shantenAfter=0)', best.every(o=>o.shantenAfter===0), true);
+  assertEqual('正解打牌の受け入れ枚数はどちらも3枚(単騎待ち)', best.every(o=>o.ukeireTotal===3), true);
 };
 
 document.addEventListener('DOMContentLoaded', initUI);
