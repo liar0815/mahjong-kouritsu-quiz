@@ -117,6 +117,27 @@ function stdShanten(counts) {
   return best;
 }
 
+// 七対子シャンテン数 = 6 - 対子数 + max(0, 7 - 保有種類数)
+function chiitoiShanten(counts) {
+  let pairs = 0, kinds = 0;
+  for (const v of counts) { if (v >= 1) kinds++; if (v >= 2) pairs++; }
+  return 6 - pairs + Math.max(0, 7 - kinds);
+}
+
+// 国士無双シャンテン数 = 13 - 幺九牌の保有種類数 - (幺九牌に対子があれば1)
+function kokushiShanten(counts) {
+  let kinds = 0, hasPair = false;
+  for (const i of YAOCHUU) {
+    if (counts[i] >= 1) kinds++;
+    if (counts[i] >= 2) hasPair = true;
+  }
+  return 13 - kinds - (hasPair ? 1 : 0);
+}
+
+function shanten(counts) {
+  return Math.min(stdShanten(counts), chiitoiShanten(counts), kokushiShanten(counts));
+}
+
 // テスト用ヘルパ: "123m456p" のような記法を34要素配列に変換する
 function mkCounts(str){
   const counts = new Array(TILE_COUNT).fill(0);
@@ -155,6 +176,13 @@ window.__registerTests = function(){
   assertEqual('通常形-テンパイ単騎待ち', stdShanten(mkCounts('123456789m1235p')), 0);
   assertEqual('通常形-1シャンテン', stdShanten(mkCounts('123456m789p45p1s')), 1);
   assertEqual('通常形-完全孤立(役に立つ塊なし)', stdShanten(mkCounts('147m147p147s1234z')), 8);
+
+  // 七対子・国士無双・統合shanten
+  assertEqual('七対子-テンパイ(6対子+1)', chiitoiShanten(mkCounts('1122334455667m')), 0);
+  assertEqual('国士無双-テンパイ(13種1枚ずつ)', kokushiShanten(mkCounts('19m19p19s1234567z')), 0);
+  assertEqual('国士無双-和了(対子あり)', kokushiShanten(mkCounts('119m19p19s1234567z')), -1);
+  assertEqual('統合shanten-和了', shanten(mkCounts('123456789m12355p')), -1);
+  assertEqual('統合shanten-完全孤立(七対子側が有利)', shanten(mkCounts('147m147p147s1234z')), 6);
 };
 
 document.addEventListener('DOMContentLoaded', initUI);
