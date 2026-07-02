@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mahjong-kouritsu",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-Command", "$root=(Get-Location).Path; $l=New-Object System.Net.HttpListener; $l.Prefixes.Add('http://localhost:8792/'); $l.Start(); Write-Output 'listening on 8792'; while ($l.IsListening) { $c=$l.GetContext(); $p=$c.Request.Url.LocalPath; if ($p -eq '/') { $p='/index.html' }; $f=Join-Path $root $p.TrimStart('/'); if (Test-Path $f -PathType Leaf) { $b=[System.IO.File]::ReadAllBytes($f); if ($f -like '*.html') { $c.Response.ContentType='text/html; charset=utf-8' } elseif ($f -like '*.css') { $c.Response.ContentType='text/css; charset=utf-8' } elseif ($f -like '*.js') { $c.Response.ContentType='application/javascript; charset=utf-8' }; $c.Response.ContentLength64=$b.Length; $c.Response.OutputStream.Write($b,0,$b.Length) } else { $c.Response.StatusCode=404 }; $c.Response.OutputStream.Close() }"],
+      "port": 8792
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>app.js テスト</title></head>
+<body>
+<pre id="out">実行中…</pre>
+<script src="app.js"></script>
+<script>
+(function(){
+  const results = [];
+  window.__testResults = results;
+  function assertEqual(name, actual, expected){
+    const ok = JSON.stringify(actual) === JSON.stringify(expected);
+    results.push(`${ok ? 'OK' : 'NG'} ${name} expected=${JSON.stringify(expected)} got=${JSON.stringify(actual)}`);
+  }
+  window.assertEqual = assertEqual;
+  window.runAllTests = function(){
+    results.length = 0;
+    if (typeof window.__registerTests === 'function') window.__registerTests();
+    document.getElementById('out').textContent = results.length ? results.join('\n') : 'テスト未登録';
+  };
+  window.runAllTests();
+})();
+</script>
+</body>
+</html>

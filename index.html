@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>牌効率クイズ（何切る）</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>🀄 牌効率クイズ（何切る）</h1>
+  <p>14枚の手牌から、シャンテン数を進めつつ受け入れ枚数が最大になる1枚を選んでください。</p>
+</header>
+
+<div class="wrap" id="quizRoot">
+  <div class="statsBar" id="statsBar"></div>
+
+  <div class="diffBar" id="diffBar">
+    <button class="diffBtn" data-diff="tenpai">0〜1シャンテン</button>
+    <button class="diffBtn" data-diff="mid">2〜3シャンテン</button>
+    <button class="diffBtn" data-diff="all">絞り込みなし</button>
+  </div>
+
+  <div class="hand" id="hand"></div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <div class="explain" id="explain"></div>
+
+  <div class="controls">
+    <button class="btn-main" id="nextBtn" style="display:none">次の問題へ</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+:root {
+  --bg:     #f0ebe0;
+  --panel:  #faf7f0;
+  --panel2: #ece7db;
+  --line:   #c8bfa8;
+  --txt:    #1f1a14;
+  --muted:  #7a6e5f;
+  --accent: #2a6e44;
+  --accent2:#1a4f30;
+  --warn:   #b87a1a;
+  --bad:    #c23b2a;
+  --good:   #2a6e44;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --shadow-sm: 0 1px 3px rgba(31,26,20,.08), 0 1px 6px rgba(31,26,20,.06);
+}
+
+*{box-sizing:border-box}
+
+body {
+  margin:0;
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo","Segoe UI",system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--txt);
+  line-height:1.7;
+}
+
+header {
+  padding:18px 28px;
+  border-bottom:1px solid var(--line);
+  background:var(--panel);
+  box-shadow:var(--shadow-sm);
+}
+header h1 { margin:0; font-size:19px; font-weight:700; }
+header p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+
+.wrap {
+  max-width:900px;
+  margin:0 auto;
+  padding:20px 24px 60px;
+}
+
+.btn-main {
+  background:var(--accent);
+  color:#fff;
+  border:none;
+  border-radius:var(--radius-sm);
+  padding:10px 18px;
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+}
+.btn-main:hover { background:var(--accent2); }
+
+.controls { margin-top:16px; text-align:center; }
