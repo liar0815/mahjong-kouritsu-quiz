@@ -74,11 +74,24 @@ function onTileClick(tile, el){
   $('feedback').className = 'feedback ' + (isCorrect ? 'correct' : 'wrong');
   renderExplain(currentProblem.discardOptions, tile);
   $('nextBtn').style.display = '';
+
+  const stats = loadStats();
+  stats.attempts++;
+  if (isCorrect) {
+    stats.correct++;
+    stats.currentStreak++;
+    stats.bestStreak = Math.max(stats.bestStreak, stats.currentStreak);
+  } else {
+    stats.currentStreak = 0;
+  }
+  saveStats(stats);
+  renderStats(stats);
 }
 
 function initUI(){
   if (!$('quizRoot')) return;
   $('nextBtn').addEventListener('click', newProblem);
+  renderStats(loadStats());
   newProblem();
 }
 
@@ -275,6 +288,28 @@ function renderExplain(discardOptions, chosenTile) {
     </table>`;
 }
 
+const STATS_KEY = 'mahjong_kiru_stats';
+
+function loadStats() {
+  try {
+    const raw = localStorage.getItem(STATS_KEY);
+    if (!raw) return { attempts: 0, correct: 0, currentStreak: 0, bestStreak: 0 };
+    return JSON.parse(raw);
+  } catch (e) {
+    return { attempts: 0, correct: 0, currentStreak: 0, bestStreak: 0 };
+  }
+}
+
+function saveStats(stats) {
+  localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+}
+
+function renderStats(stats) {
+  const rate = stats.attempts ? Math.round(stats.correct / stats.attempts * 100) : 0;
+  $('statsBar').textContent =
+    `出題数: ${stats.attempts} / 正解数: ${stats.correct} / 正答率: ${rate}% / 連続正解: ${stats.currentStreak} (自己ベスト ${stats.bestStreak})`;
+}
+
 // テスト用ヘルパ: "123m456p" のような記法を34要素配列に変換する
 function mkCounts(str){
   const counts = new Array(TILE_COUNT).fill(0);
@@ -352,6 +387,15 @@ window.__registerTests = function(){
 
   const probMid = generateProblem(mulberry32(7), 'mid');
   assertEqual('generateProblem(mid)はbestShantenが2か3', probMid.bestShanten >= 2 && probMid.bestShanten <= 3, true);
+
+  // stats
+  localStorage.removeItem(STATS_KEY);
+  const s0 = loadStats();
+  assertEqual('初期成績', s0, { attempts:0, correct:0, currentStreak:0, bestStreak:0 });
+  saveStats({ attempts:1, correct:1, currentStreak:1, bestStreak:1 });
+  const s1 = loadStats();
+  assertEqual('保存後の成績', s1, { attempts:1, correct:1, currentStreak:1, bestStreak:1 });
+  localStorage.removeItem(STATS_KEY);
 };
 
 document.addEventListener('DOMContentLoaded', initUI);
