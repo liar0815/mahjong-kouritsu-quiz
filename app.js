@@ -183,6 +183,32 @@ function evaluateDiscards(counts14) {
   return candidates;
 }
 
+// 34種×4枚=136枚の牌山からランダムに14枚を引く(Fisher-Yatesシャッフルの先頭14枚を採用)。
+function drawRandomHand(rng) {
+  const pool = [];
+  for (let t = 0; t < TILE_COUNT; t++) for (let k = 0; k < 4; k++) pool.push(t);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const counts = new Array(TILE_COUNT).fill(0);
+  for (let i = 0; i < 14; i++) counts[pool[i]]++;
+  return counts;
+}
+
+// 難易度フィルタに合う14枚を引き当てるまで再抽選する。
+// 'tenpai' = 0〜1シャンテン, 'mid' = 2〜3シャンテン, 'all' = 絞り込みなし
+function generateProblem(rng, difficulty) {
+  for (;;) {
+    const hand = drawRandomHand(rng);
+    const discardOptions = evaluateDiscards(hand);
+    const bestShanten = Math.min(...discardOptions.map(o => o.shantenAfter));
+    if (difficulty === 'all') return { hand, discardOptions, bestShanten };
+    if (difficulty === 'tenpai' && bestShanten <= 1) return { hand, discardOptions, bestShanten };
+    if (difficulty === 'mid' && bestShanten >= 2 && bestShanten <= 3) return { hand, discardOptions, bestShanten };
+  }
+}
+
 // テスト用ヘルパ: "123m456p" のような記法を34要素配列に変換する
 function mkCounts(str){
   const counts = new Array(TILE_COUNT).fill(0);
@@ -245,6 +271,21 @@ window.__registerTests = function(){
   assertEqual('正解は5pと6pを切るケースの2通り(単騎待ちで同点)', best.map(o=>o.tile).sort((a,b)=>a-b), [13, 14]); // 13=5p, 14=6p
   assertEqual('正解打牌後はテンパイ(shantenAfter=0)', best.every(o=>o.shantenAfter===0), true);
   assertEqual('正解打牌の受け入れ枚数はどちらも3枚(単騎待ち)', best.every(o=>o.ukeireTotal===3), true);
+
+  // drawRandomHand / generateProblem
+  const rngHand = mulberry32(42);
+  const hand = drawRandomHand(rngHand);
+  assertEqual('drawRandomHandは合計14枚', hand.reduce((a,b)=>a+b,0), 14);
+  assertEqual('drawRandomHandは各牌最大4枚', hand.every(v => v <= 4), true);
+
+  const probAll = generateProblem(mulberry32(7), 'all');
+  assertEqual('generateProblem(all)は14枚', probAll.hand.reduce((a,b)=>a+b,0), 14);
+
+  const probTenpai = generateProblem(mulberry32(7), 'tenpai');
+  assertEqual('generateProblem(tenpai)はbestShantenが0か1', probTenpai.bestShanten <= 1, true);
+
+  const probMid = generateProblem(mulberry32(7), 'mid');
+  assertEqual('generateProblem(mid)はbestShantenが2か3', probMid.bestShanten >= 2 && probMid.bestShanten <= 3, true);
 };
 
 document.addEventListener('DOMContentLoaded', initUI);
