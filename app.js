@@ -47,6 +47,94 @@ function initUI(){
   $('hand').textContent = '準備中…';
 }
 
+// 通常形(4面子+1雀頭)のシャンテン数を再帰的なブロック分解の全探索で求める。
+// 各牌indexについて「刻子」「順子」「雀頭」「対子(将来の刻子候補)」「両面/嵌張」「浮き牌として捨てる」を
+// 全パターン試し、最良(最小)のシャンテン数を採用する。手牌13枚・14枚どちらにも同じ式が使える
+// （14枚で4面子+雀頭が完成していれば -1 = 和了となる）。
+function stdShanten(counts) {
+  let best = 8;
+  const c = counts.slice();
+
+  function calc(melds, taatsu, head) {
+    let m = melds, t = taatsu;
+    if (m + t > 4) t = 4 - m; // 面子スロットは最大4つ。超えた分の搭子は数えない
+    const s = 8 - m * 2 - t - head;
+    if (s < best) best = s;
+  }
+
+  function rec(idx, melds, taatsu, head) {
+    while (idx < TILE_COUNT && c[idx] === 0) idx++;
+    if (idx === TILE_COUNT || (melds === 4 && head === 1)) { calc(melds, taatsu, head); return; }
+    const isHonor = idx >= 27;
+    const suitPos = idx % 9;
+
+    // 1. 刻子
+    if (c[idx] >= 3) {
+      c[idx] -= 3;
+      rec(idx, melds + 1, taatsu, head);
+      c[idx] += 3;
+    }
+    // 2. 順子
+    if (!isHonor && suitPos <= 6 && c[idx] > 0 && c[idx+1] > 0 && c[idx+2] > 0) {
+      c[idx]--; c[idx+1]--; c[idx+2]--;
+      rec(idx, melds + 1, taatsu, head);
+      c[idx]++; c[idx+1]++; c[idx+2]++;
+    }
+    // 3. 対子を雀頭として使う(雀頭未確定のときのみ)
+    if (head === 0 && c[idx] >= 2) {
+      c[idx] -= 2;
+      rec(idx, melds, taatsu, 1);
+      c[idx] += 2;
+    }
+    // 4. 対子を刻子候補(搭子)として使う
+    if (c[idx] >= 2 && melds + taatsu < 4) {
+      c[idx] -= 2;
+      rec(idx, melds, taatsu + 1, head);
+      c[idx] += 2;
+    }
+    // 5. 両面/辺張(idx, idx+1)
+    if (!isHonor && suitPos <= 7 && c[idx] > 0 && c[idx+1] > 0 && melds + taatsu < 4) {
+      c[idx]--; c[idx+1]--;
+      rec(idx, melds, taatsu + 1, head);
+      c[idx]++; c[idx+1]++;
+    }
+    // 6. 嵌張(idx, idx+2)
+    if (!isHonor && suitPos <= 6 && c[idx] > 0 && c[idx+2] > 0 && melds + taatsu < 4) {
+      c[idx]--; c[idx+2]--;
+      rec(idx, melds, taatsu + 1, head);
+      c[idx]++; c[idx+2]++;
+    }
+    // 7. 残りを浮き牌として切り捨てて次のindexへ
+    {
+      const save = c[idx];
+      c[idx] = 0;
+      rec(idx + 1, melds, taatsu, head);
+      c[idx] = save;
+    }
+  }
+
+  rec(0, 0, 0, 0);
+  return best;
+}
+
+// テスト用ヘルパ: "123m456p" のような記法を34要素配列に変換する
+function mkCounts(str){
+  const counts = new Array(TILE_COUNT).fill(0);
+  let nums = [];
+  for (const ch of str) {
+    if (ch >= '0' && ch <= '9') { nums.push(+ch); continue; }
+    if (ch === 'm' || ch === 'p' || ch === 's') {
+      const base = ch === 'm' ? 0 : ch === 'p' ? 9 : 18;
+      for (const n of nums) counts[base + n - 1]++;
+      nums = [];
+    } else if (ch === 'z') {
+      for (const n of nums) counts[27 + n - 1]++;
+      nums = [];
+    }
+  }
+  return counts;
+}
+
 window.__registerTests = function(){
   assertEqual('tileLabel(0) 1m', tileLabel(0), '1m');
   assertEqual('tileLabel(8) 9m', tileLabel(8), '9m');
@@ -61,6 +149,12 @@ window.__registerTests = function(){
   const rngA = mulberry32(1234);
   const rngB = mulberry32(1234);
   assertEqual('mulberry32は同じseedで同じ列を返す', [rngA(),rngA()], [rngB(),rngB()]);
+
+  // 通常形シャンテン
+  assertEqual('通常形-和了(4面子1雀頭)', stdShanten(mkCounts('123456789m12355p')), -1);
+  assertEqual('通常形-テンパイ単騎待ち', stdShanten(mkCounts('123456789m1235p')), 0);
+  assertEqual('通常形-1シャンテン', stdShanten(mkCounts('123456m789p45p1s')), 1);
+  assertEqual('通常形-完全孤立(役に立つ塊なし)', stdShanten(mkCounts('147m147p147s1234z')), 8);
 };
 
 document.addEventListener('DOMContentLoaded', initUI);
