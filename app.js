@@ -91,6 +91,14 @@ function onTileClick(tile, el){
 function initUI(){
   if (!$('quizRoot')) return;
   $('nextBtn').addEventListener('click', newProblem);
+  document.querySelectorAll('.diffBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentDifficulty = btn.dataset.diff;
+      document.querySelectorAll('.diffBtn').forEach(b => b.classList.toggle('active', b === btn));
+      newProblem();
+    });
+  });
+  document.querySelector('.diffBtn[data-diff="all"]').classList.add('active');
   renderStats(loadStats());
   newProblem();
 }
