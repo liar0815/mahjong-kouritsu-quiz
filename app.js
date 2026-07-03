@@ -571,16 +571,30 @@ function ownShantenExcludingCandidate(hand14, candidateTile) {
   return shanten(c13);
 }
 
-// 押し引き判定。リーチ0人なら常に押す。テンパイなら常に押す。2シャンテン以上なら常に降りる。
-// 1シャンテンなら候補牌の危険度が両筋/中筋(tier2)以下なら押す、それ以外は降りる。
+// 押し引き判定。リーチ0人なら常に押す。全リーチ者に対し現物/ノーチャンスなら、
+// シャンテン数に関わらず常に押す(絶対安全牌のため)。テンパイなら常に押す。
+// 2シャンテン以上なら常に降りる。1シャンテンのみ、自分の打点・相手の想定打点を反映したしきい値で判定する。
 function evaluatePushFold(hand14, candidateTile, scenario) {
   if (scenario.opponents.length === 0) return { correctAction: 'push', reason: 'no-riichi' };
+
+  const overall = overallDangerTier(candidateTile, scenario);
+  if (overall.tier <= DANGER_TIERS.NOCHANCE) return { correctAction: 'push', reason: 'absolutely-safe' };
+
   const ownShanten = ownShantenExcludingCandidate(hand14, candidateTile);
   if (ownShanten <= 0) return { correctAction: 'push', reason: 'tenpai' };
   if (ownShanten >= 2) return { correctAction: 'fold', reason: 'far-shanten' };
 
-  const tier = overallDangerTier(candidateTile, scenario).tier;
-  return tier <= DANGER_TIERS.SUJI_BOTH
+  const doraTile = doraTileFromIndicator(scenario.doraIndicator);
+  const ownTier = estimateOwnValueTier(hand14, candidateTile, doraTile);
+  const unseenDora = unseenDoraCount(scenario, doraTile);
+  const oppTiers = scenario.opponents.map(o => estimateOpponentValueTier(o, unseenDora));
+  const oppTier = oppTiers.includes('HIGH') ? 'HIGH' : oppTiers.includes('MID') ? 'MID' : 'LOW';
+
+  const ownAdj = ownTier === 'HIGH' ? 2 : ownTier === 'MID' ? 1 : 0;
+  const oppAdj = oppTier === 'HIGH' ? 1 : 0;
+  const threshold = Math.min(DANGER_TIERS.MODERATE, Math.max(DANGER_TIERS.SUJI_BOTH, DANGER_TIERS.SUJI_BOTH + ownAdj - oppAdj));
+
+  return overall.tier <= threshold
     ? { correctAction: 'push', reason: '1-shanten-safe-enough' }
     : { correctAction: 'fold', reason: '1-shanten-too-dangerous' };
 }
@@ -1304,6 +1318,30 @@ window.__registerTests = function(){
 
     const scenarioNoRiichi = { hand: twoShantenHand14, opponents: [], doraIndicator: 8 };
     assertEqual('evaluatePushFold: リーチ0人ならシャンテンによらず押す', evaluatePushFold(twoShantenHand14, 26, scenarioNoRiichi).correctAction, 'push');
+
+    // 絶対安全判定: 現物なら2シャンテン以上でも常に押す(新規)
+    const genbutsuFarShanten = { hand: twoShantenHand14, opponents: [{ discards: [26] }], doraIndicator: 8 }; // 9s(idx26)が現物
+    assertEqual('evaluatePushFold: 2シャンテンでも現物なら常に押す', evaluatePushFold(twoShantenHand14, 26, genbutsuFarShanten).correctAction, 'push');
+
+    // 打点統合: 自分の手がHIGH(タンヤオ+ドラ4相当)+相手LOW/MIDなら、1シャンテンでKABE(tier4)でも押す
+    const highValueHand14 = mkCounts('1133557799s246s1p'); // 候補1p(idx9)を切ると honitsu+toitoi寄り+ドラ次第でHIGHになる形
+    assertEqual('ownShantenExcludingCandidate: 高打点1シャンテン手の確認', ownShantenExcludingCandidate(highValueHand14, 9), 1);
+
+    // 候補1p(idx9)は2p(idx10)が3枚見え=壁(KABE,tier4)。相手は子・未見ドラ3枚(LOW寄りのMID)
+    const scenarioHighOwnKabe = {
+      hand: highValueHand14,
+      opponents: [{ discards: [10, 10, 10], isDealer: false }],
+      doraIndicator: 18 // 1s(idx18)→ドラは2s(idx19)
+    };
+    assertEqual('evaluatePushFold: 自分HIGH+相手LOW/MIDならKABE(tier4)でも押す', evaluatePushFold(highValueHand14, 9, scenarioHighOwnKabe).correctAction, 'push');
+
+    // 同じ手・同じ候補牌でも、相手が親+未見ドラ3枚以上(HIGH)ならしきい値が1段階厳しくなり、KABE(tier4)は降りるが正解になる
+    const scenarioHighOwnHighOpp = {
+      hand: highValueHand14,
+      opponents: [{ discards: [10, 10, 10], isDealer: true }],
+      doraIndicator: 18
+    };
+    assertEqual('evaluatePushFold: 相手もHIGHならしきい値が厳しくなりKABEは降りる', evaluatePushFold(highValueHand14, 9, scenarioHighOwnHighOpp).correctAction, 'fold');
   }
 
   // generatePushFoldProblem
