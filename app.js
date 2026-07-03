@@ -386,13 +386,23 @@ function classifyAgainstOpponent(tile, opponent, allVisible) {
   return d >= 3 ? { tier: DANGER_TIERS.DANGEROUS, reason: 'middle' } : { tier: DANGER_TIERS.MODERATE, reason: 'terminal-ish' };
 }
 
+// 早い巡目(6巡目以内)のリーチは待ちが広く実際にはより危険なため、
+// 現物・ノーチャンス以外のtierを1段階危険側に補正する(上限はMODERATE、DANGEROUSまでは引き上げない)。
+// riichiDiscardIndexが数値でない場合(巡目情報の無い既存のテストフィクスチャ等)は補正しない。
+function applyTurnAdjustment(result, opponent) {
+  const turn = opponent.riichiDiscardIndex + 1;
+  if (!Number.isFinite(turn) || turn > 6) return result;
+  if (result.tier === DANGER_TIERS.GENBUTSU || result.tier === DANGER_TIERS.NOCHANCE) return result;
+  return { tier: Math.min(result.tier + 1, DANGER_TIERS.MODERATE), reason: result.reason };
+}
+
 // 全アクティブなリーチ者に対する最悪(最大)階級を採用する。リーチ0人なら常に安全(0)。
 function overallDangerTier(tile, scenario) {
   if (scenario.opponents.length === 0) return { tier: DANGER_TIERS.GENBUTSU, reason: 'no-riichi' };
   const allVisible = visibleCounts(scenario.hand, scenario.opponents, scenario.doraIndicator);
   let worst = { tier: DANGER_TIERS.GENBUTSU, reason: 'genbutsu' };
   for (const opp of scenario.opponents) {
-    const result = classifyAgainstOpponent(tile, opp, allVisible);
+    const result = applyTurnAdjustment(classifyAgainstOpponent(tile, opp, allVisible), opp);
     if (result.tier > worst.tier) worst = result;
   }
   return worst;
@@ -1053,6 +1063,41 @@ window.__registerTests = function(){
       doraIndicator: 9 // 1p(idx9)
     };
     assertEqual('overallDangerTier: 複数リーチで最悪階級が採用される', overallDangerTier(4, scenarioMulti).tier, DANGER_TIERS.DANGEROUS);
+  }
+
+  // 巡目による危険度補正(6巡目以内の早いリーチはtierを1段階危険側に補正、GENBUTSU/NOCHANCEは補正しない、上限はMODERATE)
+  {
+    // 片筋(tier3)+早い巡目(riichiDiscardIndex=0→1巡目) → 壁(tier4)に補正される
+    const scenarioEarlySuji = {
+      hand: mkCounts('1m'),
+      opponents: [{ discards: [1], riichiDiscardIndex: 0 }], // 2m(idx1)が現物→5m(idx4)は片筋
+      doraIndicator: 2
+    };
+    assertEqual('overallDangerTier: 6巡目以内の片筋はKABEに補正される', overallDangerTier(4, scenarioEarlySuji).tier, DANGER_TIERS.KABE);
+
+    // 同じ片筋(tier3)でも7巡目以降(riichiDiscardIndex=7→8巡目)なら補正されない
+    const scenarioLateSuji = {
+      hand: mkCounts('1m'),
+      opponents: [{ discards: [1], riichiDiscardIndex: 7 }],
+      doraIndicator: 2
+    };
+    assertEqual('overallDangerTier: 7巡目以降の片筋は補正されない', overallDangerTier(4, scenarioLateSuji).tier, DANGER_TIERS.SUJI_ONE);
+
+    // 現物(tier0)は巡目に関わらず補正されない
+    const scenarioEarlyGenbutsu = {
+      hand: mkCounts('1m'),
+      opponents: [{ discards: [4], riichiDiscardIndex: 0 }], // 5m(idx4)が現物
+      doraIndicator: 2
+    };
+    assertEqual('overallDangerTier: 現物は早い巡目でも補正されない', overallDangerTier(4, scenarioEarlyGenbutsu).tier, DANGER_TIERS.GENBUTSU);
+
+    // 中危険(MODERATE, tier5)は早い巡目でも上限を超えてDANGEROUS(tier6)にはならない
+    const scenarioEarlyModerate = {
+      hand: mkCounts('1z'), // 東(idx27)を1枚保持=視認1枚
+      opponents: [{ discards: [], riichiDiscardIndex: 0 }],
+      doraIndicator: 2
+    };
+    assertEqual('overallDangerTier: MODERATEは早い巡目でもDANGEROUSまでは上がらない', overallDangerTier(27, scenarioEarlyModerate).tier, DANGER_TIERS.MODERATE);
   }
 
   // drawSafetyScenario
