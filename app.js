@@ -548,6 +548,22 @@ function estimateOwnValueTier(hand14, candidateTile, doraTile) {
   return 'LOW';
 }
 
+// 場に見えていないドラ牌の枚数(=誰かが持っている可能性の代理指標)。特定の相手の手牌を読むものではない近似値。
+function unseenDoraCount(scenario, doraTile) {
+  const visible = visibleCounts(scenario.hand, scenario.opponents, scenario.doraIndicator);
+  return Math.max(0, 4 - visible[doraTile]);
+}
+
+// リーチ者の想定打点をLOW/MID/HIGHの3段階で見積もる簡易近似。
+// スコア=(親なら+1)+(場の未見ドラ枚数が3以上なら+2、1〜2なら+1、0なら+0)。
+function estimateOpponentValueTier(opponent, unseenDora) {
+  let score = opponent.isDealer ? 1 : 0;
+  score += unseenDora >= 3 ? 2 : unseenDora >= 1 ? 1 : 0;
+  if (score >= 3) return 'HIGH';
+  if (score === 2) return 'MID';
+  return 'LOW';
+}
+
 // candidateTileを切った13枚での自分のシャンテン数(押し引き判断の基準)。
 function ownShantenExcludingCandidate(hand14, candidateTile) {
   const c13 = hand14.slice();
@@ -1240,6 +1256,23 @@ window.__registerTests = function(){
 
     const highHand14 = mkCounts('2222456m234567p1p'); // 候補1p(idx9)を切るとtanyaoDora13と同じ形になる
     assertEqual('estimateOwnValueTier: 5翻はHIGH', estimateOwnValueTier(highHand14, 9, 1), 'HIGH');
+  }
+
+  // unseenDoraCount / estimateOpponentValueTier
+  {
+    const scenarioForDora = { hand: mkCounts('1m'), opponents: [{ discards: [] }], doraIndicator: 5 };
+    assertEqual('unseenDoraCount: 誰も持っていなければ最大4枚未見', unseenDoraCount(scenarioForDora, 20), 4); // doraTile=20(3s、場に全く見えていない)
+
+    const scenarioForDoraSeen = { hand: mkCounts('1m1m'), opponents: [{ discards: [] }], doraIndicator: 5 };
+    // 手牌に1mを2枚持っているので、ドラが1mなら未見枚数は4-2=2枚
+    assertEqual('unseenDoraCount: 手牌に見えている分は未見枚数から減る', unseenDoraCount(scenarioForDoraSeen, 0), 2);
+
+    assertEqual('estimateOpponentValueTier: 子+未見0枚はLOW', estimateOpponentValueTier({ isDealer: false }, 0), 'LOW');
+    assertEqual('estimateOpponentValueTier: 子+未見2枚はLOW', estimateOpponentValueTier({ isDealer: false }, 2), 'LOW');
+    assertEqual('estimateOpponentValueTier: 親+未見0枚はLOW', estimateOpponentValueTier({ isDealer: true }, 0), 'LOW');
+    assertEqual('estimateOpponentValueTier: 親+未見2枚はMID', estimateOpponentValueTier({ isDealer: true }, 2), 'MID');
+    assertEqual('estimateOpponentValueTier: 子+未見3枚はMID', estimateOpponentValueTier({ isDealer: false }, 3), 'MID');
+    assertEqual('estimateOpponentValueTier: 親+未見3枚はHIGH', estimateOpponentValueTier({ isDealer: true }, 3), 'HIGH');
   }
 
   // ownShantenExcludingCandidate / evaluatePushFold
