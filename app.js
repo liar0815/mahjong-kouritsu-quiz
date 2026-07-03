@@ -308,6 +308,18 @@ function tileSuitAndValue(idx) {
   return { suit: null, v: null };
 }
 
+// ドラ表示牌のindexから実際のドラ牌のindexを返す。数牌はv+1(9の次は1に巡回)、
+// 風牌は東→南→西北→東、三元牌は白→發→中→白の順で巡回する。
+function doraTileFromIndicator(doraIndicator) {
+  const { suit, v } = tileSuitAndValue(doraIndicator);
+  if (suit !== null) {
+    const base = doraIndicator - (v - 1);
+    return base + (v % 9); // v=9のときv%9=0→base+0=1つ目(1)に巡回
+  }
+  if (doraIndicator <= 30) return 27 + ((doraIndicator - 27 + 1) % 4); // 風牌(27-30)の巡回
+  return 31 + ((doraIndicator - 31 + 1) % 3); // 三元牌(31-33)の巡回
+}
+
 // 自分の手牌＋全リーチ者の捨て牌＋ドラ表示牌を合算した「場に見えている枚数」配列(34要素)を作る。
 function visibleCounts(hand, opponents, doraIndicator) {
   const v = hand.slice();
@@ -940,6 +952,14 @@ window.__registerTests = function(){
   const s1 = loadStats();
   assertEqual('保存後の成績', s1, { attempts:1, correct:1, currentStreak:1, bestStreak:1 });
   localStorage.removeItem(STATS_KEY);
+
+  // doraTileFromIndicator
+  assertEqual('doraTileFromIndicator: 数牌は+1(1m→2m)', doraTileFromIndicator(0), 1);
+  assertEqual('doraTileFromIndicator: 数牌は9→1に巡回(9m→1m)', doraTileFromIndicator(8), 0);
+  assertEqual('doraTileFromIndicator: 風牌は東→南', doraTileFromIndicator(27), 28);
+  assertEqual('doraTileFromIndicator: 風牌は北→東に巡回', doraTileFromIndicator(30), 27);
+  assertEqual('doraTileFromIndicator: 三元牌は白→發', doraTileFromIndicator(31), 32);
+  assertEqual('doraTileFromIndicator: 三元牌は中→白に巡回', doraTileFromIndicator(33), 31);
 
   // 危険度判定エンジン: tileSuitAndValue / visibleCounts
   assertEqual('tileSuitAndValue(0) 1m', tileSuitAndValue(0), { suit: 'm', v: 1 });
