@@ -146,6 +146,7 @@ body[data-mode="pushfold"] header { border-left:4px solid var(--accent2); }
 .doraIndicator { display:flex; align-items:center; gap:6px; justify-content:center; margin-top:6px; font-size:13px; color:var(--muted); }
 
 .tile.tiny { width:28px; height:38px; font-size:18px; }
+.tile.tiny.riichi { transform:rotate(90deg); outline:2px solid var(--warn); margin:0 6px; }
 
 /* 安全度ランキングの選択順エリア */
 .rankingOrderArea { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; padding:12px 0; min-height:44px; }

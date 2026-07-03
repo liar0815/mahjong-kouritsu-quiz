@@ -408,7 +408,8 @@ function drawSafetyScenario(rng, includeHonors) {
     const discardLen = 6 + Math.floor(rng() * 7); // 6〜12枚
     const discards = [];
     for (let i = 0; i < discardLen && cursor < pool.length; i++) discards.push(pool[cursor++]);
-    opponents.push({ discards });
+    const riichiDiscardIndex = Math.floor(rng() * discards.length); // リーチ宣言時に切った牌の位置
+    opponents.push({ discards, riichiDiscardIndex });
   }
 
   const doraIndicator = cursor < pool.length ? pool[cursor++] : pool[0];
@@ -561,9 +562,11 @@ function renderOpponents(containerId, opponents, doraIndicator) {
     return;
   }
   const rows = opponents.map((opp, i) => {
-    const tiles = opp.discards.map(t =>
-      `<div class="tile tiny ${tileSuitClass(t)}" title="${esc(tileLabel(t))}">${tileGlyph(t)}</div>`
-    ).join('');
+    const tiles = opp.discards.map((t, idx) => {
+      const riichiClass = idx === opp.riichiDiscardIndex ? ' riichi' : '';
+      const riichiTitle = idx === opp.riichiDiscardIndex ? '(リーチ宣言牌) ' : '';
+      return `<div class="tile tiny ${tileSuitClass(t)}${riichiClass}" title="${riichiTitle}${esc(tileLabel(t))}">${tileGlyph(t)}</div>`;
+    }).join('');
     return `<div class="opponentRow"><span class="opponentLabel">リーチ${i + 1}</span><div class="opponentDiscards">${tiles}</div></div>`;
   }).join('');
   const dora = `<div class="doraIndicator">ドラ表示: <div class="tile tiny ${tileSuitClass(doraIndicator)}" title="${esc(tileLabel(doraIndicator))}">${tileGlyph(doraIndicator)}</div></div>`;
@@ -1043,6 +1046,16 @@ window.__registerTests = function(){
       if (s.opponents.some(o => o.discards.length < 6 || o.discards.length > 12)) overLimit = true;
     }
     assertEqual('drawSafetyScenario: 視認枚数は常に4枚以下・捨て牌は6〜12枚', overLimit, false);
+
+    // リーチ宣言牌は捨て牌配列内の有効なインデックスとして各リーチ者に付与される
+    let riichiIndexInvalid = false;
+    for (let seed = 0; seed < 30; seed++) {
+      const s = drawSafetyScenario(mulberry32(seed), true);
+      for (const opp of s.opponents) {
+        if (typeof opp.riichiDiscardIndex !== 'number' || opp.riichiDiscardIndex < 0 || opp.riichiDiscardIndex >= opp.discards.length) riichiIndexInvalid = true;
+      }
+    }
+    assertEqual('drawSafetyScenario: riichiDiscardIndexは捨て牌配列内の有効な位置', riichiIndexInvalid, false);
   }
 
   // generateDangerQuizProblem
