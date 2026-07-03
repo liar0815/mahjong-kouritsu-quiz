@@ -293,11 +293,12 @@ const DANGER_TIERS = {
   GENBUTSU: 0,      // 現物
   NOCHANCE: 1,      // ノーチャンス
   SUJI_BOTH: 2,     // 両筋・中筋
-  SUJI_ONE: 3,      // 片筋・壁・字牌(視認3+)
-  MODERATE: 4,      // 字牌(視認1〜2)・無地端寄り(1,2,3,7,8,9)
-  DANGEROUS: 5      // 字牌(視認0=生牌)・無地中央(4,5,6)
+  SUJI_ONE: 3,      // 片筋(相方が現物という確定情報に基づく)
+  KABE: 4,          // 壁(搭子構成牌が3枚見え=ノーチャンス一歩手前という確率的情報。片筋より信頼度が低いため片筋より危険側)
+  MODERATE: 5,      // 字牌(視認1〜2)・無地端寄り(1,2,3,7,8,9)
+  DANGEROUS: 6      // 字牌(視認0=生牌)・無地中央(4,5,6)
 };
-const TIER_LABELS = ['現物', 'ノーチャンス', '両筋・中筋', '片筋・壁・字牌安全域', '中危険', '高危険'];
+const TIER_LABELS = ['現物', 'ノーチャンス', '両筋・中筋', '片筋', '壁', '中危険', '高危険'];
 
 // idxを{suit, v}に変換する。字牌はsuit:null。
 function tileSuitAndValue(idx) {
@@ -367,7 +368,7 @@ function classifyAgainstOpponent(tile, opponent, allVisible) {
   if (partners.length === 2 && partnersGenbutsu === 2) return { tier: DANGER_TIERS.SUJI_BOTH, reason: 'suji-both' };
   if (partnersGenbutsu >= 1) return { tier: DANGER_TIERS.SUJI_ONE, reason: 'suji-one' };
 
-  if (isKabe(tile, allVisible)) return { tier: DANGER_TIERS.SUJI_ONE, reason: 'kabe' };
+  if (isKabe(tile, allVisible)) return { tier: DANGER_TIERS.KABE, reason: 'kabe' };
 
   const d = Math.min(v - 1, 9 - v);
   return d >= 3 ? { tier: DANGER_TIERS.DANGEROUS, reason: 'middle' } : { tier: DANGER_TIERS.MODERATE, reason: 'terminal-ish' };
@@ -1005,6 +1006,11 @@ window.__registerTests = function(){
     // 無地端牌(1m)と無地中央(5m)
     assertEqual('classify: 無地端牌1mは中危険', classifyAgainstOpponent(0, { discards: [] }, empty).tier, DANGER_TIERS.MODERATE);
     assertEqual('classify: 無地中央5mは高危険', classifyAgainstOpponent(4, { discards: [] }, empty).tier, DANGER_TIERS.DANGEROUS);
+
+    // 壁(kabe)は片筋より一段階危険側の独立tierになる(片筋は現物という確定情報、壁は3枚見えの確率的情報のため)
+    const allVisibleKabeOnly = new Array(TILE_COUNT).fill(0);
+    allVisibleKabeOnly[5] = 3; // 6mが3枚見え(壁)
+    assertEqual('classify: 壁は片筋と別tier(KABE)', classifyAgainstOpponent(4, { discards: [] }, allVisibleKabeOnly).tier, DANGER_TIERS.KABE);
 
     // 字牌(東=idx27)の視認枚数による階級
     const honorVisible3 = new Array(TILE_COUNT).fill(0); honorVisible3[27] = 3;
