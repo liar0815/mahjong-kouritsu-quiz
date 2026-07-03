@@ -8,9 +8,16 @@
 </head>
 <body>
 <header>
-  <h1>🀄 牌効率クイズ（何切る）</h1>
-  <p>14枚の手牌から、シャンテン数を進めつつ受け入れ枚数が最大になる1枚を選んでください。</p>
+  <h1 id="pageTitle">🀄 牌効率クイズ（何切る）</h1>
+  <p id="pageDesc">14枚の手牌から、シャンテン数を進めつつ受け入れ枚数が最大になる1枚を選んでください。</p>
 </header>
+
+<div class="modeBar" id="modeBar">
+  <button class="modeBtn" data-mode="kiru">何切る</button>
+  <button class="modeBtn" data-mode="danger">危険牌クイズ</button>
+  <button class="modeBtn" data-mode="ranking">安全度ランキング</button>
+  <button class="modeBtn" data-mode="pushfold">押し引き二択</button>
+</div>
 
 <div class="wrap" id="quizRoot">
   <div class="statsBar" id="statsBar"></div>
@@ -34,6 +41,50 @@
 
   <div class="controls">
     <button class="btn-main" id="nextBtn" style="display:none">次の問題へ</button>
+  </div>
+</div>
+
+<div class="wrap" id="dangerRoot" style="display:none">
+  <div class="statsBar" id="dangerStatsBar"></div>
+  <div class="opponentsPanel" id="dangerOpponents"></div>
+  <p class="modeCaption">最も安全な牌を1枚クリックしてください。</p>
+  <div class="hand" id="dangerHand"></div>
+  <div class="feedback" id="dangerFeedback"></div>
+  <div class="explain" id="dangerExplain"></div>
+  <div class="controls">
+    <button class="btn-main" id="dangerNextBtn" style="display:none">次の問題へ</button>
+  </div>
+</div>
+
+<div class="wrap" id="rankingRoot" style="display:none">
+  <div class="statsBar" id="rankingStatsBar"></div>
+  <div class="opponentsPanel" id="rankingOpponents"></div>
+  <p class="modeCaption">安全な順にクリックしてください。</p>
+  <div class="hand" id="rankingSource"></div>
+  <div class="rankingOrderArea" id="rankingOrder"></div>
+  <div class="controls">
+    <button class="btn-main rankingResetBtn" id="rankingResetBtn">やり直す</button>
+  </div>
+  <div class="feedback" id="rankingFeedback"></div>
+  <div class="explain" id="rankingExplain"></div>
+  <div class="controls">
+    <button class="btn-main" id="rankingNextBtn" style="display:none">次の問題へ</button>
+  </div>
+</div>
+
+<div class="wrap" id="pushfoldRoot" style="display:none">
+  <div class="statsBar" id="pushfoldStatsBar"></div>
+  <div class="opponentsPanel" id="pushfoldOpponents"></div>
+  <p class="modeCaption">候補牌(直前に引いた牌)を押すか降りるか選んでください。</p>
+  <div class="hand" id="pushfoldHand"></div>
+  <div class="pushfoldButtons" id="pushfoldButtons">
+    <button class="btn-push" data-action="push">押す</button>
+    <button class="btn-fold" data-action="fold">降りる</button>
+  </div>
+  <div class="feedback" id="pushfoldFeedback"></div>
+  <div class="explain" id="pushfoldExplain"></div>
+  <div class="controls">
+    <button class="btn-main" id="pushfoldNextBtn" style="display:none">次の問題へ</button>
   </div>
 </div>
 

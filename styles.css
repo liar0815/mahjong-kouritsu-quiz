@@ -84,6 +84,7 @@ header p { margin:6px 0 0; color:var(--muted); font-size:13px; }
 .tile.correct { outline:3px solid var(--good); }
 .tile.wrong { outline:3px solid var(--bad); }
 .tile.disabled { cursor:default; opacity:.6; }
+.tile.candidate { outline:3px dashed var(--warn); }
 
 .diffBar { display:flex; gap:8px; justify-content:center; margin-top:10px; }
 .diffBtn {
@@ -116,3 +117,55 @@ header p { margin:6px 0 0; color:var(--muted); font-size:13px; }
 .explain table { width:100%; border-collapse:collapse; font-size:13px; margin-top:12px; }
 .explain th, .explain td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:center; }
 .explain tr.correct { background:rgba(42,110,68,.08); }
+.explain tr.wrong-pair { background:rgba(194,59,42,.12); }
+
+/* モード切替バー */
+.modeBar { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; padding:12px 16px 0; }
+.modeBtn {
+  background:var(--panel2);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:6px 14px;
+  font-size:13px;
+  cursor:pointer;
+}
+.modeBtn.active { background:var(--accent2); color:#fff; border-color:var(--accent2); }
+
+/* モードごとのアクセントカラー(見出しの左ボーダー) */
+body[data-mode="danger"] header { border-left:4px solid var(--bad); }
+body[data-mode="ranking"] header { border-left:4px solid var(--warn); }
+body[data-mode="pushfold"] header { border-left:4px solid var(--accent2); }
+
+.modeCaption { text-align:center; font-size:13px; color:var(--muted); margin:8px 0 0; }
+
+/* リーチ者の捨て牌・ドラ表示牌パネル */
+.opponentsPanel { margin-top:12px; }
+.opponentRow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:6px; font-size:13px; }
+.opponentLabel { color:var(--muted); min-width:5em; }
+.opponentDiscards { display:flex; gap:3px; flex-wrap:wrap; }
+.doraIndicator { display:flex; align-items:center; gap:6px; justify-content:center; margin-top:6px; font-size:13px; color:var(--muted); }
+
+.tile.tiny { width:28px; height:38px; font-size:18px; }
+
+/* 安全度ランキングの選択順エリア */
+.rankingOrderArea { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; padding:12px 0; min-height:44px; }
+.rankingSlot { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border:1px dashed var(--line); border-radius:var(--radius-sm); font-size:22px; color:var(--muted); }
+.rankingSlot.filled { border-style:solid; background:var(--panel); }
+.rankingResetBtn { background:var(--panel2); color:var(--txt); }
+.rankingResetBtn:hover { background:var(--line); }
+
+/* 押し引き二択のボタン */
+.pushfoldButtons { display:flex; gap:12px; justify-content:center; margin-top:16px; }
+.btn-push, .btn-fold {
+  border:none;
+  border-radius:var(--radius-sm);
+  padding:10px 24px;
+  font-size:15px;
+  font-weight:700;
+  cursor:pointer;
+  color:#fff;
+}
+.btn-push { background:var(--good); }
+.btn-push:hover { background:var(--accent2); }
+.btn-fold { background:var(--bad); }
+.btn-fold:hover { background:#8f2d21; }
