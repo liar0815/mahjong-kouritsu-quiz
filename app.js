@@ -502,6 +502,52 @@ function generateRankingProblem(rng, includeHonors) {
   }
 }
 
+// 簡易役判定+翻数概算(符計算は行わない)。正確な待ちの形までは判定せず、手牌の「形」だけから翻数を見積もる近似値。
+// hand13は候補牌を切った後の13枚、doraTileは実際のドラ牌のindex。
+function estimateHanCount(hand13, doraTile) {
+  let han = 0;
+
+  // タンヤオ: 幺九牌(老頭牌+字牌)を1枚も持っていない
+  const hasYaochuu = YAOCHUU.some(i => hand13[i] > 0);
+  if (!hasYaochuu) han += 1;
+
+  // 混一色: 使用しているスート(萬子/筒子/索子)が1種類のみ(字牌はいくつ混ざっていてもよい)
+  const usedSuits = new Set();
+  for (let t = 0; t < 27; t++) if (hand13[t] > 0) usedSuits.add(Math.floor(t / 9));
+  if (usedSuits.size === 1) han += 2;
+
+  // 役牌: 三元牌(白發中)のいずれかを2枚以上持っている(対子または刻子)
+  for (const dragon of [31, 32, 33]) if (hand13[dragon] >= 2) han += 1;
+
+  // トイトイ寄り: 2枚以上持っている牌種の割合が高い(対子・刻子中心の形)
+  const totalKinds = hand13.filter(c => c > 0).length;
+  const pairedKinds = hand13.filter(c => c >= 2).length;
+  if (totalKinds > 0 && pairedKinds / totalKinds >= 0.6) han += 2;
+
+  // 一盃口: 同一スート内で連続する3つの値がいずれも2枚以上(同じ順子が2組作れる形)
+  for (let suitBase = 0; suitBase < 27; suitBase += 9) {
+    for (let v = 0; v < 7; v++) {
+      const idx = suitBase + v;
+      if (hand13[idx] >= 2 && hand13[idx + 1] >= 2 && hand13[idx + 2] >= 2) han += 1;
+    }
+  }
+
+  // ドラ
+  han += hand13[doraTile];
+
+  return han;
+}
+
+// 自分の手の価値をLOW(0〜2翻)/MID(3〜4翻)/HIGH(5翻以上)の3段階に分類する。
+function estimateOwnValueTier(hand14, candidateTile, doraTile) {
+  const hand13 = hand14.slice();
+  hand13[candidateTile]--;
+  const han = estimateHanCount(hand13, doraTile);
+  if (han >= 5) return 'HIGH';
+  if (han >= 3) return 'MID';
+  return 'LOW';
+}
+
 // candidateTileを切った13枚での自分のシャンテン数(押し引き判断の基準)。
 function ownShantenExcludingCandidate(hand14, candidateTile) {
   const c13 = hand14.slice();
@@ -1172,6 +1218,28 @@ window.__registerTests = function(){
     }
     assertEqual('generateRankingProblem: リーチ0人にはならない', alwaysHasRiichi, true);
     assertEqual('generateRankingProblem: 選出牌は5種以下', alwaysFiveOrFewer, true);
+  }
+
+  // estimateHanCount / estimateOwnValueTier
+  {
+    // タンヤオのみ(役牌・混一色・トイトイ不成立、ドラ0) → 1翻 → LOW
+    const tanyaoOnly13 = mkCounts('234567m234567p2s');
+    assertEqual('estimateHanCount: タンヤオのみは1翻', estimateHanCount(tanyaoOnly13, 0), 1);
+
+    // タンヤオ+ドラ4(2mを4枚) → 1+4=5翻 → HIGH
+    const tanyaoDora13 = mkCounts('2222456m234567p');
+    assertEqual('estimateHanCount: タンヤオ+ドラ4は5翻', estimateHanCount(tanyaoDora13, 1), 5); // doraTile=1(2m)
+
+    // 役なし(幺九牌あり、混一色・役牌・トイトイ不成立、ドラ0) → 0翻 → LOW
+    const noYaku13 = mkCounts('123456789m123p4p');
+    assertEqual('estimateHanCount: 役なしは0翻', estimateHanCount(noYaku13, 20), 0); // doraTile=20(3s、手牌に無い)
+
+    // estimateOwnValueTierは3段階に分類する
+    const lowHand14 = mkCounts('234567m234567p2s1p'); // 候補1p(idx9)を切るとtanyaoOnly13と同じ形になる
+    assertEqual('estimateOwnValueTier: 1翻はLOW', estimateOwnValueTier(lowHand14, 9, 0), 'LOW');
+
+    const highHand14 = mkCounts('2222456m234567p1p'); // 候補1p(idx9)を切るとtanyaoDora13と同じ形になる
+    assertEqual('estimateOwnValueTier: 5翻はHIGH', estimateOwnValueTier(highHand14, 9, 1), 'HIGH');
   }
 
   // ownShantenExcludingCandidate / evaluatePushFold
