@@ -666,7 +666,9 @@ function renderOpponents(containerId, opponents, doraIndicator) {
       const riichiTitle = idx === opp.riichiDiscardIndex ? '(リーチ宣言牌) ' : '';
       return `<div class="tile tiny ${tileSuitClass(t)}${riichiClass}" title="${riichiTitle}${esc(tileLabel(t))}">${tileGlyph(t)}</div>`;
     }).join('');
-    return `<div class="opponentRow"><span class="opponentLabel">リーチ${i + 1}</span><div class="opponentDiscards">${tiles}</div></div>`;
+    // リーチ宣言巡目が分かる方が押し引き判断の学習に役立つため表示する
+    const turnLabel = typeof opp.riichiDiscardIndex === 'number' ? `(${opp.riichiDiscardIndex + 1}巡目)` : '';
+    return `<div class="opponentRow"><span class="opponentLabel">リーチ${i + 1}${esc(turnLabel)}</span><div class="opponentDiscards">${tiles}</div></div>`;
   }).join('');
   const dora = `<div class="doraIndicator">ドラ表示: <div class="tile tiny ${tileSuitClass(doraIndicator)}" title="${esc(tileLabel(doraIndicator))}">${tileGlyph(doraIndicator)}</div></div>`;
   container.innerHTML = rows + dora;
@@ -721,14 +723,21 @@ function onDangerTileClick(tile, el) {
 
 function renderDangerExplain(candidates, chosenTile) {
   const sorted = candidates.slice().sort((a, b) => a.tier - b.tier);
+  // リーチ者ごとの筋・壁・現物の状態を個別に見せるため、巡目補正前の生の判定を再計算する
+  const allVisible = visibleCounts(dangerProblem.hand, dangerProblem.opponents, dangerProblem.doraIndicator);
+  const perOpponentHeaders = dangerProblem.opponents.map((_, i) => `<th>対リーチ${i + 1}</th>`).join('');
   const rows = sorted.map(c => {
     const cls = c.isCorrect ? 'correct' : '';
     const mark = c.tile === chosenTile ? '←選択' : '';
-    return `<tr class="${cls}"><td>${esc(tileLabel(c.tile))}</td><td>${esc(TIER_LABELS[c.tier])}</td><td>${esc(reasonLabel(c.reason))}</td><td>${esc(mark)}</td></tr>`;
+    const perOpponentCells = dangerProblem.opponents.map(opp => {
+      const r = classifyAgainstOpponent(c.tile, opp, allVisible);
+      return `<td>${esc(TIER_LABELS[r.tier])}</td>`;
+    }).join('');
+    return `<tr class="${cls}"><td>${esc(tileLabel(c.tile))}</td><td>${esc(TIER_LABELS[c.tier])}</td><td>${esc(reasonLabel(c.reason))}</td>${perOpponentCells}<td>${esc(mark)}</td></tr>`;
   }).join('');
   $('dangerExplain').innerHTML = `
     <table>
-      <thead><tr><th>牌</th><th>階級</th><th>理由</th><th></th></tr></thead>
+      <thead><tr><th>牌</th><th>総合階級</th><th>理由</th>${perOpponentHeaders}<th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -887,9 +896,17 @@ function onPushFoldChoice(action) {
 
 function renderPushFoldExplain(chosenAction) {
   const j = pushfoldProblem.judgment;
-  const tierLine = pushfoldProblem.opponents.length
-    ? `候補牌の危険度: ${esc(TIER_LABELS[overallDangerTier(pushfoldProblem.candidateTile, pushfoldProblem).tier])}（${esc(reasonLabel(overallDangerTier(pushfoldProblem.candidateTile, pushfoldProblem).reason))}）`
-    : 'リーチ者なし';
+  let tierLine = 'リーチ者なし';
+  if (pushfoldProblem.opponents.length) {
+    const overall = overallDangerTier(pushfoldProblem.candidateTile, pushfoldProblem);
+    // リーチ者ごとの生の判定も併記し、総合階級だけでは見えない個別の危険度を提示する
+    const allVisible = visibleCounts(pushfoldProblem.hand, pushfoldProblem.opponents, pushfoldProblem.doraIndicator);
+    const perOpponent = pushfoldProblem.opponents.map((opp, i) => {
+      const r = classifyAgainstOpponent(pushfoldProblem.candidateTile, opp, allVisible);
+      return `対リーチ${i + 1}: ${esc(TIER_LABELS[r.tier])}`;
+    }).join(' / ');
+    tierLine = `候補牌の総合危険度: ${esc(TIER_LABELS[overall.tier])}（${esc(reasonLabel(overall.reason))}） [${perOpponent}]`;
+  }
   $('pushfoldExplain').innerHTML = `
     <p>候補牌: ${esc(tileLabel(pushfoldProblem.candidateTile))}</p>
     <p>あなたの選択: ${esc(chosenAction === 'push' ? '押す' : '降りる')} / 正解: ${esc(j.correctAction === 'push' ? '押す' : '降りる')}</p>
