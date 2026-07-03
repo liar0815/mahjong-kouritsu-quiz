@@ -309,7 +309,7 @@ function tileSuitAndValue(idx) {
 }
 
 // ドラ表示牌のindexから実際のドラ牌のindexを返す。数牌はv+1(9の次は1に巡回)、
-// 風牌は東→南→西北→東、三元牌は白→發→中→白の順で巡回する。
+// 風牌は東→南→西→北→東、三元牌は白→發→中→白の順で巡回する。
 function doraTileFromIndicator(doraIndicator) {
   const { suit, v } = tileSuitAndValue(doraIndicator);
   if (suit !== null) {
