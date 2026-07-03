@@ -432,7 +432,7 @@ function drawSafetyScenario(rng, includeHonors) {
     const discards = [];
     for (let i = 0; i < discardLen && cursor < pool.length; i++) discards.push(pool[cursor++]);
     const riichiDiscardIndex = Math.floor(rng() * discards.length); // リーチ宣言時に切った牌の位置
-    opponents.push({ discards, riichiDiscardIndex });
+    opponents.push({ discards, riichiDiscardIndex, isDealer: rng() < 0.25 });
   }
 
   const doraIndicator = cursor < pool.length ? pool[cursor++] : pool[0];
@@ -1220,6 +1220,18 @@ window.__registerTests = function(){
       }
     }
     assertEqual('drawSafetyScenario: riichiDiscardIndexは捨て牌配列内の有効な位置', riichiIndexInvalid, false);
+
+    // isDealerは25%の確率で付与されるため、十分な回数試行すればtrue/false両方が出現する
+    const rngForDealer = mulberry32(1);
+    let sawTrue = false, sawFalse = false;
+    for (let i = 0; i < 200 && !(sawTrue && sawFalse); i++) {
+      const scen = drawSafetyScenario(rngForDealer, false);
+      for (const opp of scen.opponents) {
+        if (opp.isDealer === true) sawTrue = true;
+        if (opp.isDealer === false) sawFalse = true;
+      }
+    }
+    assertEqual('drawSafetyScenario: isDealerがtrue/false両方出現する', sawTrue && sawFalse, true);
   }
 
   // generateDangerQuizProblem
